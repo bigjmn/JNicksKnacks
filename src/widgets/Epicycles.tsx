@@ -451,8 +451,8 @@ const EpicycleVisualizer: React.FC = () => {
       <section className="panel">
         <h1>Draw a shape</h1>
         <div className="canvas-stack">
-          <canvas ref={drawCanvasRef} width={500} height={500} />
-          <canvas ref={epiCanvasRef} width={500} height={500} style={{position: "absolute", inset: 0, pointerEvents: "none", background: "transparent", border: "none"}} />
+          <canvas ref={drawCanvasRef} width={400} height={400} />
+          <canvas ref={epiCanvasRef} width={400} height={400} style={{position: "absolute", inset: 0, pointerEvents: "none", background: "transparent", border: "none"}} />
         </div>
         <div className="controls">
           <button type="button" onClick={handleClearClick}>
