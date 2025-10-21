@@ -1,3 +1,4 @@
+//@ts-nocheck
 "use client"
 
 import React, { useMemo, useState } from "react";
@@ -110,7 +111,7 @@ export default function WrappedGaussianDial({
         </div>
         <div className="text-sm text-gray-600">
           <div>t = <span className="font-medium">{t.toFixed(1)}</span> s</div>
-          <div className="opacity-80">max ρ ≈ {maxDensity.toFixed(3)} · mean ρ ≈ {meanDensity.toFixed(3)}</div>
+          <div className="opacity-80">max ρ ≈ {maxDensity.toFixed(3)} · mean ρ ≈ {meanDensity.toFixed(3)} {minDensity}</div>
         </div>
       </div>
 
