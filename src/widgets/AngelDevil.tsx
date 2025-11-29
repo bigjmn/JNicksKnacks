@@ -99,8 +99,14 @@ const ANGEL_TYPE_DESCRIPTIONS: Record<AngelType, string> = {
 export default function AngelDevil() {
   // Grid settings
   const [gridType, setGridType] = useState<GridType>("square");
-  const [gridSize] = useState(95); // Fixed 21x21 grid
+  const [gridSize] = useState(95); // Full grid is 95x95
   const [cellSize, setCellSize] = useState(28);
+
+  // Zoom calculation constants
+  const DEFAULT_VIEW_SIZE = 21; // Show 21x21 squares by default
+  const MIN_VIEW_SIZE = 60; // Can zoom out to show max 60x60 squares
+  const DEFAULT_ZOOM = gridSize / DEFAULT_VIEW_SIZE; // ~4.52 for 95/21
+  const MIN_ZOOM = gridSize / MIN_VIEW_SIZE; // ~1.58 for 95/60
 
   // Game state
   const [angelPos, setAngelPos] = useState<Coord>({ q: 0, r: 0 });
@@ -124,9 +130,13 @@ export default function AngelDevil() {
 
   // Pan/zoom state
   const [viewOffset, setViewOffset] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  // Highlighting drag state
+  const [isHighlighting, setIsHighlighting] = useState(false);
+  const [highlightMode, setHighlightMode] = useState<'add' | 'remove' | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -166,12 +176,12 @@ export default function AngelDevil() {
     const handleNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      setZoom(prev => Math.max(0.3, Math.min(3, prev * delta)));
+      setZoom(prev => Math.max(MIN_ZOOM, Math.min(gridSize, prev * delta)));
     };
 
     container.addEventListener('wheel', handleNativeWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleNativeWheel);
-  }, []);
+  }, [MIN_ZOOM, gridSize]);
 
   // Reset game
   const resetGame = () => {
@@ -184,7 +194,7 @@ export default function AngelDevil() {
     setGameOver(false);
     setWinner(null);
     setViewOffset({ x: 0, y: 0 });
-    setZoom(1);
+    setZoom(DEFAULT_ZOOM);
   };
 
   // Handle grid type change
@@ -297,16 +307,26 @@ export default function AngelDevil() {
     }, 100);
   };
 
-  // Handle cell click
-  const handleCellClick = (coord: Coord, e: React.MouseEvent) => {
-    e.preventDefault();
+  // Handle cell pointer down (starts highlight drag or handles select)
+  const handleCellPointerDown = (coord: Coord, e: React.PointerEvent) => {
     if (gameOver) return;
+
+    // Don't handle cell interactions in pan mode - let it bubble to container
+    if (activeTool === "pan") return;
+
+    e.preventDefault();
+    e.stopPropagation();
 
     if (activeTool === "highlight") {
       const key = coordKey(coord);
+      // Start highlighting drag - determine mode based on current state
+      setIsHighlighting(true);
+      const wasHighlighted = highlightedSquares.has(key);
+      setHighlightMode(wasHighlighted ? 'remove' : 'add');
+
       setHighlightedSquares(prev => {
         const next = new Set(prev);
-        if (next.has(key)) {
+        if (wasHighlighted) {
           next.delete(key);
         } else {
           next.add(key);
@@ -324,6 +344,23 @@ export default function AngelDevil() {
         eatSquare(coord);
       }
     }
+  };
+
+  // Handle cell enter (for drag highlighting)
+  const handleCellEnter = (coord: Coord) => {
+    if (gameOver) return;
+    if (!isHighlighting || activeTool !== "highlight" || !highlightMode) return;
+
+    const key = coordKey(coord);
+    setHighlightedSquares(prev => {
+      const next = new Set(prev);
+      if (highlightMode === 'add') {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
   };
 
   // Pan/zoom handlers
@@ -346,6 +383,8 @@ export default function AngelDevil() {
 
   const handlePointerUp = () => {
     setIsPanning(false);
+    setIsHighlighting(false);
+    setHighlightMode(null);
   };
 
   // Render grid
@@ -366,10 +405,15 @@ export default function AngelDevil() {
           const isHighlighted = highlightedSquares.has(key);
           const isValidMove = validMoveKeys.has(key);
 
+          // Check if this square was reachable on a previous turn (for Very Nice Angel)
+          const wasPreviouslyReachable = angelType === "very-nice" &&
+            reachableHistory.some(reachableSet => reachableSet.has(key));
+
           let fill = darkMode ? "#1a1a1a" : "#ffffff";
           if (isEaten) fill = darkMode ? "#7f1d1d" : "#dc2626";
           else if (isHighlighted) fill = darkMode ? "#854d0e" : "#fbbf24";
           else if (isVisited) fill = darkMode ? "#164e63" : "#67e8f9";
+          else if (wasPreviouslyReachable) fill = darkMode ? "#0c4a6e" : "#bae6fd";
           else if (isValidMove && activeTool === "select") fill = darkMode ? "#065f46" : "#86efac";
 
           const x = (q + halfSize) * cellSize;
@@ -386,7 +430,8 @@ export default function AngelDevil() {
                 stroke={darkMode ? "#404040" : "#d1d5db"}
                 strokeWidth={1}
                 style={{ cursor: activeTool === "select" ? "pointer" : activeTool === "highlight" ? "crosshair" : "grab" }}
-                onClick={(e) => handleCellClick(coord, e as unknown as React.MouseEvent)}
+                onPointerDown={(e) => handleCellPointerDown(coord, e)}
+                onPointerEnter={() => handleCellEnter(coord)}
               />
               {showCoordinates && (
                 <text
@@ -440,10 +485,15 @@ export default function AngelDevil() {
           const isHighlighted = highlightedSquares.has(key);
           const isValidMove = validMoveKeys.has(key);
 
+          // Check if this square was reachable on a previous turn (for Very Nice Angel)
+          const wasPreviouslyReachable = angelType === "very-nice" &&
+            reachableHistory.some(reachableSet => reachableSet.has(key));
+
           let fill = darkMode ? "#1a1a1a" : "#ffffff";
           if (isEaten) fill = darkMode ? "#7f1d1d" : "#dc2626";
           else if (isHighlighted) fill = darkMode ? "#854d0e" : "#fbbf24";
           else if (isVisited) fill = darkMode ? "#164e63" : "#67e8f9";
+          else if (wasPreviouslyReachable) fill = darkMode ? "#0c4a6e" : "#bae6fd";
           else if (isValidMove && activeTool === "select") fill = darkMode ? "#065f46" : "#86efac";
 
           const { x, y } = hexToPixel(q, r, hexSize);
@@ -458,7 +508,8 @@ export default function AngelDevil() {
                 stroke={darkMode ? "#404040" : "#d1d5db"}
                 strokeWidth={1}
                 style={{ cursor: activeTool === "select" ? "pointer" : activeTool === "highlight" ? "crosshair" : "grab" }}
-                onClick={(e) => handleCellClick(coord, e as unknown as React.MouseEvent)}
+                onPointerDown={(e) => handleCellPointerDown(coord, e)}
+                onPointerEnter={() => handleCellEnter(coord)}
               />
               {showCoordinates && (
                 <text
@@ -786,6 +837,10 @@ export default function AngelDevil() {
                 <span className={darkMode ? "text-gray-300" : "text-gray-700"}>Visited</span>
               </div>
               <div className="flex items-center gap-2">
+                <div className={`w-5 h-5 rounded`} style={{ backgroundColor: darkMode ? "#0c4a6e" : "#bae6fd" }}></div>
+                <span className={darkMode ? "text-gray-300" : "text-gray-700"}>Prev. Reach.</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <div className={`w-5 h-5 rounded ${darkMode ? "bg-yellow-900" : "bg-yellow-300"}`}></div>
                 <span className={darkMode ? "text-gray-300" : "text-gray-700"}>Highlighted</span>
               </div>
@@ -912,6 +967,10 @@ export default function AngelDevil() {
               <div className="flex items-center gap-1">
                 <div className={`w-4 h-4 rounded ${darkMode ? "bg-cyan-900" : "bg-cyan-300"}`}></div>
                 <span className={darkMode ? "text-gray-300" : "text-gray-700"}>Visited</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className={`w-4 h-4 rounded`} style={{ backgroundColor: darkMode ? "#0c4a6e" : "#bae6fd" }}></div>
+                <span className={darkMode ? "text-gray-300" : "text-gray-700"}>Prev. Reach.</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className={`w-4 h-4 rounded ${darkMode ? "bg-yellow-900" : "bg-yellow-300"}`}></div>
