@@ -5,9 +5,9 @@ import { Cell, Maze, wilsonsAlgorithm } from "./wilson"
 
 export function WilsonMaze(){
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const [stepTime, setStepTime] = useState(20)
+    const [stepTime, setStepTime] = useState(100)
 
-    const [mazeSize, setMazeSize] = useState(9)
+    const [mazeSize, setMazeSize] = useState(7)
 
     useEffect(() => {
         const controller = new AbortController()
@@ -19,7 +19,7 @@ export function WilsonMaze(){
 
         const generateMaze = async () => {
             while (!cancelSignal.aborted){
-                const maze = new Maze(mazeSize, mazeSize)
+                const maze = new Maze(mazeSize, mazeSize, true)
                 try {
                     const staken = await wilsonsAlgorithm(maze, ctx, cancelSignal, stepTime)
                     console.log(staken)

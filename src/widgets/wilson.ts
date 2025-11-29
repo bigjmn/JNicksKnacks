@@ -59,7 +59,7 @@ export class Cell {
 
   }
 
-  drawOuts(ctx:CanvasRenderingContext2D, cellSize:number):void {
+  drawOuts(ctx:CanvasRenderingContext2D, cellSize:number, isTorus:boolean = false, mazeWidth?: number, mazeHeight?: number):void {
     if (this.edges.length === 0){
         return
     }
@@ -68,12 +68,58 @@ export class Cell {
     ctx.lineWidth = cellSize/1.5
     ctx.strokeStyle="white"
     ctx.lineCap="round"
-    ctx.moveTo(cx, cy)
+
     this.edges.forEach((nb) => {
         const [nbx, nby] = nb.getCenter(cellSize)
-        ctx.lineTo(nbx, nby)
-        ctx.moveTo(cx, cy)
 
+        if (isTorus && mazeWidth && mazeHeight) {
+          // Check if this edge wraps around the torus
+          const dx = nb.x - this.x
+          const dy = nb.y - this.y
+
+          // If the distance is large, it's a wrap-around connection
+          const wrapsX = Math.abs(dx) > 1
+          const wrapsY = Math.abs(dy) > 1
+
+          if (wrapsX || wrapsY) {
+            // For wrap-around edges, each cell draws only its own segment
+            // Draw from this cell's center toward the edge where it exits
+
+            if (wrapsX) {
+              // Horizontal wrap
+              const canvasWidth = cellSize * mazeWidth
+              if (this.x > nb.x) {
+                // This cell is on the right edge, draw toward the right
+                ctx.moveTo(cx, cy)
+                ctx.lineTo(canvasWidth, cy)
+              } else {
+                // This cell is on the left edge, draw toward the left
+                ctx.moveTo(cx, cy)
+                ctx.lineTo(0, cy)
+              }
+            } else if (wrapsY) {
+              // Vertical wrap
+              const canvasHeight = cellSize * mazeHeight
+              if (this.y > nb.y) {
+                // This cell is on the bottom edge, draw toward the bottom
+                ctx.moveTo(cx, cy)
+                ctx.lineTo(cx, canvasHeight)
+              } else {
+                // This cell is on the top edge, draw toward the top
+                ctx.moveTo(cx, cy)
+                ctx.lineTo(cx, 0)
+              }
+            }
+          } else {
+            // Normal non-wrapping edge
+            ctx.moveTo(cx, cy)
+            ctx.lineTo(nbx, nby)
+          }
+        } else {
+          // Normal grid rendering
+          ctx.moveTo(cx, cy)
+          ctx.lineTo(nbx, nby)
+        }
     })
     ctx.closePath()
     ctx.stroke()
@@ -87,13 +133,15 @@ export class Maze {
   cells: Cell[][];
   start: Cell | null;
   end: Cell | null;
+  isTorus: boolean;
 
-  constructor(width: number, height: number) {
+  constructor(width: number, height: number, isTorus: boolean = false) {
     this.width = width;
     this.height = height;
     this.cells = [];
-    this.start = null; 
-    this.end = null; 
+    this.start = null;
+    this.end = null;
+    this.isTorus = isTorus;
 
     // Generate cells
     for (let y = 0; y < height; y++) {
@@ -107,10 +155,20 @@ export class Maze {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const cell = this.cells[y][x];
-        if (x > 0) cell.neighbors.push(this.cells[y][x - 1]); // left
-        if (x < width - 1) cell.neighbors.push(this.cells[y][x + 1]); // right
-        if (y > 0) cell.neighbors.push(this.cells[y - 1][x]); // top
-        if (y < height - 1) cell.neighbors.push(this.cells[y + 1][x]); // bottom
+
+        if (isTorus) {
+          // Torus topology: wrap around edges
+          cell.neighbors.push(this.cells[y][(x - 1 + width) % width]); // left (wraps)
+          cell.neighbors.push(this.cells[y][(x + 1) % width]); // right (wraps)
+          cell.neighbors.push(this.cells[(y - 1 + height) % height][x]); // top (wraps)
+          cell.neighbors.push(this.cells[(y + 1) % height][x]); // bottom (wraps)
+        } else {
+          // Normal grid topology
+          if (x > 0) cell.neighbors.push(this.cells[y][x - 1]); // left
+          if (x < width - 1) cell.neighbors.push(this.cells[y][x + 1]); // right
+          if (y > 0) cell.neighbors.push(this.cells[y - 1][x]); // top
+          if (y < height - 1) cell.neighbors.push(this.cells[y + 1][x]); // bottom
+        }
       }
     }
   }
@@ -165,27 +223,24 @@ const MAZE_CONNECTED_FILL="#fff"
 const MAZE_CURR_PATH="#888"
 export function renderMaze(
     maze:Maze,
-    currentCell: Cell | null, 
+    currentCell: Cell | null,
     currentPath: Cell[],
     ctx: CanvasRenderingContext2D
 ) {
-    const canvas = ctx.canvas 
-    const { width, height } = maze 
+    const canvas = ctx.canvas
+    const { width, height, isTorus } = maze
 
     ctx.fillStyle = MAZE_STROKE
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    const cellSize = canvas.width / width 
+    const cellSize = canvas.width / width
     maze.cells.flat().forEach((c) => {
         if (currentPath.includes(c)){
-            // const [lx, ty] = c.getTopLeft(cellSize)
-            // ctx.moveTo(lx, ty)
-            // ctx.fillStyle=MAZE_CURR_PATH
-            // ctx.fillRect(lx, ty, cellSize, cellSize)
+
             c.fillSelf(ctx, cellSize, MAZE_CURR_PATH)
 
         }
-        c.drawOuts(ctx, cellSize)
+        c.drawOuts(ctx, cellSize, isTorus, width, height)
         if (currentCell === c){
             const [cx, cy] = c.getCenter(cellSize)
             ctx.beginPath()
@@ -196,29 +251,10 @@ export function renderMaze(
         }
     })
 
-    // ctx.strokeStyle=MAZE_STROKE
-    // ctx.lineWidth = 1; 
 
-    // for (let y=0; y<height; y++){
-    //     for (let x=0; x<width; x++){
-    //         const cell = maze.getCell(x,y)
-    //         if (cell){
-    //             const left = x*cellSize 
-    //             const top = y*cellSize 
-
-    //             if (cell.edges.length === 0){
-    //                 ctx.fillStyle = MAZE_STROKE
-    //             }
-    //             if (currentPath.includes(cell)){
-    //                 ctx.fillStyle = MAZE_CURR_PATH
-    //             }
-
-    //         }
-    //     }
-    // }
 }
 
-export async function wilsonsAlgorithm(maze: Maze, ctx: CanvasRenderingContext2D, cancelSignal: AbortSignal, stepTime: number){
+export async function wilsonsAlgorithm(maze: Maze, ctx: CanvasRenderingContext2D, cancelSignal: AbortSignal, stepTime: number, watchWander:boolean = true){
     const unvisited = new Set<Cell>(maze.cells.flat())
     const visited = new Set<Cell>()
 
@@ -245,7 +281,7 @@ export async function wilsonsAlgorithm(maze: Maze, ctx: CanvasRenderingContext2D
             } else {
                 path.push(next)
             }
-            if (visited.size>1){renderMaze(maze, next, path, ctx)
+            if (watchWander){renderMaze(maze, next, path, ctx)
             if (visited.size === 1){
                 const cellsize = ctx.canvas.width/maze.width
                 startCell.fillSelf(ctx, cellsize, "white")
