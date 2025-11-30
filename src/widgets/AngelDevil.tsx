@@ -140,6 +140,8 @@ export default function AngelDevil() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const lastPinchDistanceRef = useRef<number | null>(null);
 
   // Responsive cell size
   useEffect(() => {
@@ -365,14 +367,42 @@ export default function AngelDevil() {
 
   // Pan/zoom handlers
   const handlePointerDown = (e: React.PointerEvent) => {
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
     if (activeTool === "pan") {
       setIsPanning(true);
       setPanStart({ x: e.clientX - viewOffset.x, y: e.clientY - viewOffset.y });
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     }
+
+    if (activePointersRef.current.size === 2) {
+      const points = Array.from(activePointersRef.current.values());
+      const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+      lastPinchDistanceRef.current = distance;
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (activePointersRef.current.has(e.pointerId)) {
+      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (activePointersRef.current.size === 2) {
+      const points = Array.from(activePointersRef.current.values());
+      const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+
+      if (lastPinchDistanceRef.current) {
+        const scaleFactor = distance / lastPinchDistanceRef.current;
+        setZoom(prev => {
+          const nextZoom = prev * scaleFactor;
+          return Math.max(MIN_ZOOM, Math.min(gridSize, nextZoom));
+        });
+      }
+
+      lastPinchDistanceRef.current = distance;
+      return;
+    }
+
     if (isPanning && activeTool === "pan") {
       setViewOffset({
         x: e.clientX - panStart.x,
@@ -381,10 +411,15 @@ export default function AngelDevil() {
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
     setIsPanning(false);
     setIsHighlighting(false);
     setHighlightMode(null);
+
+    activePointersRef.current.delete(e.pointerId);
+    if (activePointersRef.current.size < 2) {
+      lastPinchDistanceRef.current = null;
+    }
   };
 
   // Render grid
@@ -903,9 +938,9 @@ export default function AngelDevil() {
               maxWidth: `${svgSize}px`,
               aspectRatio:"1/1",
             //   height: `${svgSize}px`,
-              touchAction: activeTool === "pan" ? "none" : "auto",
+              touchAction: "none",
               userSelect: "none",
-              
+
             }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
