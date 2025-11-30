@@ -482,26 +482,17 @@ export default function AngelDevil() {
                 </text>
               )}
               {isAngel && (
-                <circle
-                  cx={x + cellSize / 2}
-                  cy={y + cellSize / 2}
-                  r={cellSize * 0.4}
-                  fill={darkMode ? "#fbbf24" : "#f59e0b"}
-                  stroke={darkMode ? "#fcd34d" : "#d97706"}
-                  strokeWidth={2}
-                />
-              )}
-              {isAngel && (
-                <text
-                  x={x + cellSize / 2}
-                  y={y + cellSize / 2}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={cellSize * 0.5}
+                <image
+                  aria-label="angel"
+                  
+                  href={darkMode ? "/angel-dark.svg" : "/angel-apparition-svgrepo-com.svg"}
+                  x={x + cellSize * 0.1}
+                  y={y + cellSize * 0.1}
+                  width={cellSize * 0.8}
+                  height={cellSize * 0.8}
+                  
                   pointerEvents="none"
-                >
-                  =
-                </text>
+                />
               )}
             </g>
           );
@@ -558,22 +549,15 @@ export default function AngelDevil() {
                 </text>
               )}
               {isAngel && (
-                <circle
-                  r={hexSize * 0.5}
-                  fill={darkMode ? "#fbbf24" : "#f59e0b"}
-                  stroke={darkMode ? "#fcd34d" : "#d97706"}
-                  strokeWidth={2}
-                />
-              )}
-              {isAngel && (
-                <text
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={hexSize * 0.6}
+                <image
+                  aria-label="angel"
+                  href={darkMode ? "/angel-dark.svg" : "/angel-apparition-svgrepo-com.svg"}
+                  x={-hexSize * 0.4}
+                  y={-hexSize * 0.4}
+                  width={hexSize * 0.8}
+                  height={hexSize * 0.8}
                   pointerEvents="none"
-                >
-                  =
-                </text>
+                />
               )}
             </g>
           );
