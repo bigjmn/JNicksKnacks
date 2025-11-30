@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useRef, useEffect } from "react";
-
+import clsx from "clsx";
 // Conway's Angel Problem Interactive Widget
 // The Angel moves up to 'power' squares away (Manhattan distance)
 // The Devil eats one square per turn
@@ -896,25 +896,43 @@ export default function AngelDevil() {
         <div className="flex-1 flex flex-col items-center justify-start">
           <div className={`w-full mb-4 ${panelClass}`}>
             <div className="flex flex-wrap items-center gap-3">
-              <span className={`${labelClass} font-semibold`}>Tools:</span>
+              {/* <span className={`${labelClass} font-semibold`}>Tools:</span> */}
               <button
                 type="button"
                 onClick={() => setActiveTool("select")}
-                className={activeTool === "select" ? activeButtonClass : buttonClass}
+                className={clsx(
+                  "px-4 py-2 rounded-lg font-medium transition-colors",
+                  activeTool === "select" && darkMode && "bg-blue-600 text-white hover:bg-blue-500",
+                  activeTool === "select" && !darkMode && "bg-blue-500 text-white hover:bg-blue-600",
+                  activeTool !== "select" && darkMode && "bg-gray-700 text-gray-100 hover:bg-gray-600",
+                  activeTool !== "select" && !darkMode && "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                )}
               >
                 Select
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTool("pan")}
-                className={activeTool === "pan" ? activeButtonClass : buttonClass}
+                className={clsx(
+                  "px-4 py-2 rounded-lg font-medium transition-colors",
+                  activeTool === "pan" && darkMode && "bg-blue-600 text-white hover:bg-blue-500",
+                  activeTool === "pan" && !darkMode && "bg-blue-500 text-white hover:bg-blue-600",
+                  activeTool !== "pan" && darkMode && "bg-gray-700 text-gray-100 hover:bg-gray-600",
+                  activeTool !== "pan" && !darkMode && "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                )}
               >
                 Pan/Zoom
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTool("highlight")}
-                className={activeTool === "highlight" ? activeButtonClass : buttonClass}
+                className={clsx(
+                  "px-4 py-2 rounded-lg font-medium transition-colors",
+                  activeTool === "highlight" && darkMode && "bg-blue-600 text-white hover:bg-blue-500",
+                  activeTool === "highlight" && !darkMode && "bg-blue-500 text-white hover:bg-blue-600",
+                  activeTool !== "highlight" && darkMode && "bg-gray-700 text-gray-100 hover:bg-gray-600",
+                  activeTool !== "highlight" && !darkMode && "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                )}
               >
                 Highlight
               </button>

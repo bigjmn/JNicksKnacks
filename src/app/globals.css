@@ -90,7 +90,8 @@ canvas {
   max-width: 320px;
 }
 
-button {
+/* Scope button styles to only apply to buttons without specific classes */
+button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]) {
   padding: 0.5rem 1.5rem;
   font-size: 1rem;
   background: #0078d4;
@@ -101,12 +102,12 @@ button {
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
-button:hover {
+button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 18px rgba(0, 120, 212, 0.35);
 }
 
-button:active {
+button:not([class*="bg-"]):not([class*="text-"]):not([class*="px-"]):active {
   transform: translateY(0);
   box-shadow: none;
 }
